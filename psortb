@@ -1,0 +1,139 @@
+#!/usr/bin/perl
+# Perl script wrapper to run a "docker run" command which runs 
+# PSORTb inside the docker container.
+
+use strict;
+use Getopt::Long;
+use File::Basename;
+use Cwd 'abs_path';
+
+sub main {
+
+    my ($seqfile, $help, $outdir);
+    my ($positive, $negative, $archaea, $xskiploc);
+    my ($format, $verbose, $cutoff, $exact, $version, $output, $divergent);
+
+    my @args = @ARGV;
+    my $extra_args = remove_unneeded_args(\@args);
+
+    GetOptions('seq|i=s'     => \$seqfile,  'positive|p'    => \$positive,
+               'archaea|a'   => \$archaea,  'negative|n'    => \$negative,
+               'x-skip-localization' => \$xskiploc,
+               'help|h'      => \$help,     'outdir|r=s'    => \$outdir,
+               'format|f=s'  => \$format,   'divergent|d=f' => \$divergent,
+               'verbose|v'   => \$verbose, 
+               'cutoff|c=f'  => \$cutoff,   'output|o=s'    => \$output,
+               'exact|e'     => \$exact,    'version'       => \$version);
+
+    die usage() if($help);
+
+    $seqfile = abs_path($seqfile);
+    $outdir  = abs_path($outdir); 
+
+    check_mandatory_field_values($seqfile, $outdir);
+
+    $outdir =~ s/\/$//; # remove trailing slash if present
+
+    my $seqfilename = basename($seqfile);
+
+    my $new_seqfilepath = "$outdir/".$seqfilename;
+
+    # copy file to mount directory (if it doesn't already exist)
+    my $seqfile_copied = make_file_copy($seqfile, $new_seqfilepath);
+
+
+    my $cmd = "sudo docker run --rm -v $outdir:/tmp/results -e SEQFILE='/tmp/$seqfilename' -e MOUNT='$outdir' -ti psortb_commandline_docker:latest psortb $extra_args";
+    print "cmd = $cmd\n";
+    #system($cmd);
+
+    # remove copied files (if they were created)
+    delete_file($new_seqfilepath, $seqfile_copied);
+}
+
+sub make_file_copy {
+    my ($orig_file, $new_file) = @_;
+
+    my $copied_flag = 0;
+    if (! -e $new_file) {
+        my $cmd = "cp $orig_file $new_file";
+        system($cmd);
+        die "Could not copy file: $cmd: $@\n" if $@;
+        $copied_flag = 1;
+    }
+    return($copied_flag);
+}
+
+sub delete_file {
+    my ($file, $delete_flag) = @_;
+
+    if ($delete_flag) {
+        my $cmd = "rm $file";
+        system($cmd);
+        die "Could not delete file: $cmd: $@\n" if $@;
+    }
+}
+
+sub check_mandatory_field_values {
+
+    my $ctr = 0;
+    my @input_type = ('input sequence file (-i, --seq)', 'results path (-r, --outdir)');
+    foreach my $file_or_dir (@_) {
+        my $error = 0;
+
+        if (!$file_or_dir) {
+            $error = 1;
+        } 
+        elsif ((! -d $file_or_dir) && (! -f $file_or_dir)) {
+            $error = 1;
+        }
+
+        if ($error) {
+            print "No such file or directory: $file_or_dir\nPlease enter a valid location for your $input_type[$ctr]\n\n\n";
+            usage();
+            exit(0);
+        }
+        $ctr++;
+    }
+}
+
+sub remove_unneeded_args {
+    my $args = shift;
+
+    #remove -r (output dir), -i (seq)
+    my @modified_arg_list;
+    for (my $i=0; $i<scalar(@$args); $i++) {
+        if (($$args[$i] eq '-r') || ($$args[$i] eq '--outdir') ||
+            ($$args[$i] eq '-i') || ($$args[$i] eq '--seq')) {
+            $i++; # skip current and next element
+        }
+        else {
+            push(@modified_arg_list, $$args[$i]);
+        }
+    }
+    return( join(" ", @modified_arg_list) );
+}
+
+sub usage {
+    $0 =~ /^.*\/(.+)/;
+    print("Usage: $1 -s <sequence file> [OPTIONS]\n");
+    print("Example command: psortm -n -s myseqs.fasta -r /tmp/psortm_results\n");
+    print("  --seq, -i         Input sequence file path (required)\n");
+    print("  --positive, -p    Gram positive bacteria\n");
+    print("  --negative, -n    Gram negative bacteria\n");
+    print("  --archaea, -a     Archaea\n");
+    print("  --outdir, -r      Path of where to save results files.\n");
+    print("  --cutoff, -c      Sets a cutoff value for reported results\n");
+    print("  --divergent, -d   Sets a cutoff value for the multiple\n");
+    print("                    localization flag\n");
+    print("  --format, -f      Specifies sequence format (default is FASTA)\n");
+    print("  --exact, -e       Skip SCLBLASTe (useful for batch runs of data\n");
+    print("                    against itself in SCLBLAST)\n");
+    print("  --output, -o      Specifies the format for the output (default is\n");
+    print("                    'terse'  Value can be one of: terse or long\n");
+    print("  --verbose, -v     Be verbose while running\n");
+    print("  --version         Print the version of PSortb\n");
+    print("  --x-skip-localization  Comma-separated list of localizations to skip\n");
+    print("  --help, -h        Displays usage information\n");
+}
+
+main();
