@@ -40,7 +40,7 @@ RUN wget http://www.psort.org/download/bio-tools-psort-all.3.0.4.tar.gz && tar z
 
 WORKDIR /usr/local/src/bio-tools-psort-all
 
-RUN wget http://www.psort.org/download/docker/psortm_standalone_for_docker.tar.gz && tar xvf psortm_standalone_for_docker.tar.gz && mv psortm_standalone_for_docker/Makefile.PL ./
+RUN wget http://www.psort.org/download/docker/psortb_standalone_for_docker.tar.gz && tar xvf psortb_standalone_for_docker.tar.gz && mv psortb_standalone_for_docker/Makefile.PL ./
 
 RUN wget http://www.psort.org/download/docker/psortb.defaults && perl Makefile.PL && make && make install 
 
