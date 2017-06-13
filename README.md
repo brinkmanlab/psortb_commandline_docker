@@ -5,7 +5,7 @@ PSORTb is a bioinformatics tool for predicting subcellular
 localization for a given set of protein sequences. The protein 
 sequences must belong to one type of organisms, classified by 
 cell membrane type in order to more accurately predict subcellular 
-localization: 
+localization. The supported organism types are: 
 - Gram negative (-n)
 - Gram positive (-p)
 - archaea (-a)   
@@ -19,9 +19,9 @@ This PSORTb installtions uses PSORTb version 3.
 
 
 ### Repository contents
-This repository hosts a Docker buildfile (Dockerfile) for the complexi
-environment of PSORTb. It also contains a wrapper script (psortb) to
-run PSORTb inside the container.
+This repository hosts a Docker buildfile (Dockerfile) which builds the complex
+environment of PSORTb. It also contains a wrapper script (named psortb) to
+run the PSORTb analysis inside the Docker container.
 
 Warning: Users of this app must have admin rights to run docker commands.
 Either that or an administrator must give you access to run "docker run"
@@ -43,14 +43,14 @@ This build requires a unix-type system and 3.9GB space.
 ```
 
 
-### Running a PSORTm analysis
+### Running a PSORTb analysis
 Once the Docker image has been installed, run PSORTb like this:
 ```
 % cd psortb_commandline_docker
 % ./psortb -h
 ```
 
-Warning: Users of this psortm app must have admin rights to run 
+Warning: Users of this psortb app must have admin rights to run 
 docker commands. Either that or an administrator must give you 
 access to run "docker run" commands.
 
