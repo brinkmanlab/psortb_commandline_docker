@@ -15,7 +15,7 @@ localization. The supported organism types are:
 The PSORTb program has been added to a Docker container to
 simply the installation process.
 
-This PSORTb installtions uses PSORTb version 3.
+This PSORTb installations uses PSORTb version 3.
 
 
 ### Repository contents
