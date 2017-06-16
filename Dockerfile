@@ -36,6 +36,8 @@ RUN wget http://www.psort.org/download/libpsortb-1.0.tar.gz && tar zxvf libpsort
 
 RUN mkdir -p /usr/local/src/blastdb
 
+WORKDIR /usr/local/src
+
 RUN wget http://www.psort.org/download/bio-tools-psort-all.3.0.4.tar.gz && tar zxvf bio-tools-psort-all.3.0.4.tar.gz
 
 WORKDIR /usr/local/src/bio-tools-psort-all
