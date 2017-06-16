@@ -7,60 +7,63 @@ use Getopt::Long;
 use File::Basename;
 use Cwd 'abs_path';
 
+our $docker_results_dir = "/tmp/results";
+
 sub main {
 
-    my ($seqfile, $help, $outdir);
+    my ($seqfile, $help, $nondocker_results_dir);
     my ($positive, $negative, $archaea, $xskiploc);
     my ($format, $verbose, $cutoff, $exact, $version, $output, $divergent);
 
     my @args = @ARGV;
     my $extra_args = remove_unneeded_args(\@args);
 
+
     GetOptions('seq|i=s'     => \$seqfile,  'positive|p'    => \$positive,
                'archaea|a'   => \$archaea,  'negative|n'    => \$negative,
                'x-skip-localization' => \$xskiploc,
-               'help|h'      => \$help,     'outdir|r=s'    => \$outdir,
+               'help|h'      => \$help,     'outdir|r=s'    => \$nondocker_results_dir,
                'format|f=s'  => \$format,   'divergent|d=f' => \$divergent,
                'verbose|v'   => \$verbose, 
                'cutoff|c=f'  => \$cutoff,   'output|o=s'    => \$output,
                'exact|e'     => \$exact,    'version'       => \$version);
 
-    usage() && exit(0) if($help);
+    usage() if($help);
+
+    if (! -d $nondocker_results_dir) {
+        print "Please enter a valid local directory to store the PSORTb results in (-r).\n";
+        usage();
+    }
+    elsif (! -e $seqfile) {
+        print "Please enter a valid FASTA-format protein sequence file (-i).\n";
+    }
 
     $seqfile = abs_path($seqfile);
-    $outdir  = abs_path($outdir); 
-
-    check_mandatory_field_values($seqfile, $outdir);
-
-    $outdir =~ s/\/$//; # remove trailing slash if present
+    $nondocker_results_dir  = abs_path($nondocker_results_dir); 
+    $nondocker_results_dir =~ s/\/$//; # remove trailing slash if present
 
     my $seqfilename = basename($seqfile);
-
-    my $new_seqfilepath = "$outdir/".$seqfilename;
+    my $nondocker_seqfile = "$nondocker_results_dir/$seqfilename";
+    my $docker_seqfile    = "$docker_results_dir/$seqfilename";
 
     # copy file to mount directory (if it doesn't already exist)
-    my $seqfile_copied = make_file_copy($seqfile, $new_seqfilepath);
+    my $seqfile_copied = make_file_copy($seqfile, $nondocker_seqfile);
+    
 
-
-    my $cmd = "sudo docker run --rm -v $outdir:/tmp/results -e SEQFILE='/tmp/$seqfilename' -e MOUNT='$outdir' -ti psortb_commandline_docker:latest psortb $extra_args";
-    print "cmd = $cmd\n";
-    #system($cmd);
+    my $cmd = "sudo docker run --rm -v $nondocker_results_dir:$docker_results_dir -e MOUNT='$nondocker_results_dir' -ti psortb_commandline_docker:latest /usr/local/psortb/bin/psort $extra_args -i $docker_seqfile";
+    #print "cmd = $cmd\n";
+    system($cmd);
 
     # remove copied files (if they were created)
-    delete_file($new_seqfilepath, $seqfile_copied);
+    delete_file($nondocker_seqfile, $seqfile_copied);
 }
 
 sub make_file_copy {
     my ($orig_file, $new_file) = @_;
 
-    my $copied_flag = 0;
-    if (! -e $new_file) {
-        my $cmd = "cp $orig_file $new_file";
-        system($cmd);
-        die "Could not copy file: $cmd: $@\n" if $@;
-        $copied_flag = 1;
-    }
-    return($copied_flag);
+    my $cmd = "cp $orig_file $new_file";
+    system($cmd);
+    die "Could not copy file: $cmd: $@\n" if $@;
 }
 
 sub delete_file {
@@ -73,38 +76,22 @@ sub delete_file {
     }
 }
 
-sub check_mandatory_field_values {
-
-    my $ctr = 0;
-    my @input_type = ('input sequence file (-i, --seq)', 'results path (-r, --outdir)');
-    foreach my $file_or_dir (@_) {
-        my $error = 0;
-
-        if (!$file_or_dir) {
-            $error = 1;
-        } 
-        elsif ((! -d $file_or_dir) && (! -f $file_or_dir)) {
-            $error = 1;
-        }
-
-        if ($error) {
-            print "No such file or directory: $file_or_dir\nPlease enter a valid location for your $input_type[$ctr]\n\n\n";
-            usage();
-            exit(0);
-        }
-        $ctr++;
-    }
-}
-
 sub remove_unneeded_args {
     my $args = shift;
 
-    #remove -r (output dir), -i (seq)
+    # remove -r (non-docker results dir) because inside docker, the 
+    # "Saving results to <-r option value>" is provided by an environment
+    # variable.
+    # Remove -i <local file> (because we need to use -i <container file>)
     my @modified_arg_list;
+
     for (my $i=0; $i<scalar(@$args); $i++) {
-        if (($$args[$i] eq '-r') || ($$args[$i] eq '--outdir') ||
-            ($$args[$i] eq '-i') || ($$args[$i] eq '--seq')) {
-            $i++; # skip current and next element
+
+        if (($$args[$i] eq '-r') ||
+            ($$args[$i] eq '--outdir') ||
+            ($$args[$i] eq '-i') || 
+            ($$args[$i] eq '--seq')) {
+            $i++;
         }
         else {
             push(@modified_arg_list, $$args[$i]);
@@ -115,7 +102,7 @@ sub remove_unneeded_args {
 
 sub usage {
     $0 =~ /^.*\/(.+)/;
-    print("Usage: $1 -s <sequence file> -r <local results directory> [OPTIONS]\n");
+    print("\nUsage: $1 -s <sequence file> -r <local results directory> [OPTIONS]\n");
     print("Example command: psortm -n -s myseqs.fasta -r /tmp/psortm_results\n");
     print("  --seq, -i         Input sequence file path (required)\n");
     print("  --positive, -p    Gram positive bacteria\n");
@@ -134,6 +121,8 @@ sub usage {
     print("  --version         Print the version of PSortb\n");
     print("  --x-skip-localization  Comma-separated list of localizations to skip\n");
     print("  --help, -h        Displays usage information\n\n");
+
+    exit(0);
 }
 
 main();
