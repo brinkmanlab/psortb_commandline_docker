@@ -50,7 +50,7 @@ sub main {
     my $seqfile_copied = make_file_copy($seqfile, $nondocker_seqfile);
     
 
-    my $cmd = "sudo docker run --rm -v $nondocker_results_dir:$docker_results_dir -e MOUNT='$nondocker_results_dir' -ti psortb_commandline_docker:latest /usr/local/psortb/bin/psort $extra_args -i $docker_seqfile";
+    my $cmd = "sudo docker run --rm -v $nondocker_results_dir:$docker_results_dir -e MOUNT='$nondocker_results_dir' -ti brinkmanlab/psortb_commandline:1.0.0 /usr/local/psortb/bin/psort $extra_args -i $docker_seqfile";
     #print "cmd = $cmd\n";
     system($cmd);
 
