@@ -30,7 +30,7 @@ WORKDIR /usr/local/src
 
 RUN echo '/usr/local/lib64' >>/etc/ld.so.conf
 
-RUN wget ftp://ftp.ncbi.nih.gov/blast/executables/blast+/2.6.0/ncbi-blast-2.6.0+-x64-linux.tar.gz && tar xvf ncbi-blast-2.6.0+-x64-linux.tar.gz && export PATH=$PATH:/usr/local/ncbi-blast-2.6.0+/bin
+RUN wget ftp://ftp.ncbi.nih.gov/blast/executables/blast+/2.6.0/ncbi-blast-2.6.0+-x64-linux.tar.gz && tar xvf ncbi-blast-2.6.0+-x64-linux.tar.gz && export PATH=$PATH:/usr/local/bin/ncbi-blast-2.6.0+/bin
 
 RUN wget http://www.psort.org/download/libpsortb-1.0.tar.gz && tar zxvf libpsortb-1.0.tar.gz && cd libpsortb-1.0 && ./configure && make && make install && ldconfig
 
