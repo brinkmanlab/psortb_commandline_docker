@@ -103,7 +103,7 @@ sub remove_unneeded_args {
 sub usage {
     $0 =~ /^.*\/(.+)/;
     print("\nUsage: $1 -s <sequence file> -r <local results directory> [OPTIONS]\n");
-    print("Example command: psortm -n -s myseqs.fasta -r /tmp/psortm_results\n");
+    print("Example command: psortm -n -i myseqs.fasta -r /tmp/psortm_results\n");
     print("  --seq, -i         Input sequence file path (required)\n");
     print("  --positive, -p    Gram positive bacteria\n");
     print("  --negative, -n    Gram negative bacteria\n");
@@ -116,7 +116,7 @@ sub usage {
     print("  --exact, -e       Skip SCLBLASTe (useful for batch runs of data\n");
     print("                    against itself in SCLBLAST)\n");
     print("  --output, -o      Specifies the format for the output (default is\n");
-    print("                    'terse'  Value can be one of: terse or long\n");
+    print("                    'normal'). Value can be one of: normal, terse or long\n");
     print("  --verbose, -v     Be verbose while running\n");
     print("  --version         Print the version of PSortb\n");
     print("  --x-skip-localization  Comma-separated list of localizations to skip\n");
