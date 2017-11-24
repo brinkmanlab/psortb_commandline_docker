@@ -38,7 +38,7 @@ RUN mkdir -p /usr/local/src/blastdb
 
 WORKDIR /usr/local/src
 
-RUN wget http://www.psort.org/download/bio-tools-psort-all.3.0.4.tar.gz && tar zxvf bio-tools-psort-all.3.0.4.tar.gz
+RUN wget http://www.psort.org/download/bio-tools-psort-all.3.0.5.tar.gz && tar zxvf bio-tools-psort-all.3.0.5.tar.gz
 
 WORKDIR /usr/local/src/bio-tools-psort-all
 
@@ -51,7 +51,7 @@ RUN mv /usr/local/psortb/bin /usr/local/psortb/bin_orig && mv psortb_standalone_
 #cleanup
 WORKDIR /usr/local/src
 
-RUN rm libpsortb-1.0.tar.gz bio-tools-psort-all.3.0.4.tar.gz ncbi-blast-2.6.0+-x64-linux.tar.gz /usr/local/bin/pftools/pft2.3_static.tar.gz bio-tools-psort-all/psortb_standalone_for_docker.tar.gz 
+RUN rm libpsortb-1.0.tar.gz bio-tools-psort-all.3.0.5.tar.gz ncbi-blast-2.6.0+-x64-linux.tar.gz /usr/local/bin/pftools/pft2.3_static.tar.gz bio-tools-psort-all/psortb_standalone_for_docker.tar.gz 
 
 RUN rm -r /usr/local/src/bio-tools-psort-all/psortb_standalone_for_docker
 
