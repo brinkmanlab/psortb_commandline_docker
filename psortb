@@ -59,7 +59,7 @@ sub main {
     
 
     my $cmd = "sudo docker run --rm -v $nondocker_results_dir:$docker_results_dir -e MOUNT='$nondocker_results_dir' -ti $docker_image /usr/local/psortb/bin/psort $extra_args -i $docker_seqfile";
-    print "cmd = $cmd\n";
+    #print "cmd = $cmd\n";
     system($cmd);
 
     # remove copied files (if they were created)
