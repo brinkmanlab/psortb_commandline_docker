@@ -8,7 +8,7 @@ use File::Basename;
 use Cwd 'abs_path';
 
 our $docker_results_dir = "/tmp/results";
-our $docker_image = "brinkmanlab/psortb_commandline:1.0.1";
+our $docker_image = "brinkmanlab/psortb_commandline:1.0.2";
 
 sub main {
 
