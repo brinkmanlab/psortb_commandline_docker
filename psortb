@@ -111,7 +111,7 @@ sub remove_unneeded_args {
 sub usage {
     $0 =~ /^.*\/(.+)/;
     print("\nUsage: $1 -i <sequence file> -r <local results directory> [-n|-p|-a] [OPTIONS]\n");
-    print("Example command: psortm -n -i myseqs.fasta -r /tmp/psortm_results\n");
+    print("Example command: psortb -n -i myseqs.fasta -r /tmp/psortb_results\n");
     print("  --seq, -i         Input sequence file path (required)\n");
     print("  --positive, -p    Gram positive bacteria\n");
     print("  --negative, -n    Gram negative bacteria\n");
