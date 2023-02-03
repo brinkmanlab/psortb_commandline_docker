@@ -1,0 +1,206 @@
+#!/usr/bin/perl
+# Perl script wrapper to run an "apptainer run" command which runs 
+# PSORTb inside the apptainer container.
+
+use strict;
+use Getopt::Long;
+use File::Basename;
+use Cwd 'abs_path';
+
+our $container_results_dir = "/results";
+our $sif_file = "./psortb.sif";
+our $overlay_size = 300; # MB
+our $overlay_file = "results.img";
+
+sub main {
+
+    my ($seqfile, $help, $host_results_dir);
+    my ($positive, $negative, $archaea, $xskiploc);
+    my ($input_format, $verbose, $cutoff, $exact);
+    my ($version, $output, $divergent);
+
+    my @args = @ARGV;
+
+    #my $extra_args = remove_unneeded_args(\@args);
+
+    my $ret = GetOptions('seq|i=s'       => \$seqfile,
+               'positive|p'    => \$positive,
+               'archaea|a'     => \$archaea,
+               'negative|n'    => \$negative,
+               'x-skip-localization' => \$xskiploc,
+               'divergent|d=f' => \$divergent,
+               'format|f=s'    => \$input_format,
+               'cutoff|c=f'    => \$cutoff,
+               'exact|e'       => \$exact,
+               'outdir|r=s'        => \$host_results_dir,
+	             'sif-file|s=s'      => \$sif_file,
+               'overlay-size-mb=i' => \$overlay_size,
+               'overlay-file=s'    => \$overlay_file,
+               'output|o=s'        => \$output,
+               'version'           => \$version,
+               'help|h' => \$help, 'verbose|v' => \$verbose);
+
+    usage() if($help);
+    die "Exiting" unless $ret; # die if unrecognized option is detected
+
+    my $extra_args = remove_unneeded_args(\@args);
+
+    if ($version) {
+        my $cmd = "apptainer run $sif_file /usr/local/psortb/bin/psort --version";
+        #print "cmd = $cmd\n";
+        system($cmd);
+        exit(0);
+    }
+
+    if (! -e $sif_file) {
+        print "ERROR: Apptainer image file (sif file) not found: $sif_file\nPlease enter an apptainer sif file location in (-s).\n";
+        exit(0);
+    }
+    elsif (! -d $host_results_dir) {
+        print "ERROR: Directory not found: $host_results_dir\nPlease enter a valid local directory to store the PSORTb results in (-r).\n";
+        exit(0);
+    }
+    elsif (! -e $seqfile) {
+        print "ERROR: Sequence file not found: $seqfile\nPlease enter a valid FASTA-format protein sequence file (-i).\n";
+        exit(0);
+    }
+
+    $seqfile = abs_path($seqfile);
+    $host_results_dir  = abs_path($host_results_dir); 
+    $host_results_dir =~ s/\/$//; # remove trailing slash if present
+
+    my $seqfilename       = basename($seqfile);
+    my $host_seqfile      = "$host_results_dir/$seqfilename";
+    my $container_seqfile = "$container_results_dir/$seqfilename";
+
+    my ($hname, $hpath, $hsuffix) = fileparse($host_results_dir);
+    my @hdirs = split(/\//, $hpath);
+    my $host_results_rootdir = "/$hdirs[1]";
+
+    # copy file to mount directory (if it doesn't already exist)
+    my $seqfile_copied = make_file_copy($seqfile, $host_seqfile);
+
+    # create overlay image to save results to initially
+    my $overlay_created_flag = 0;
+    if (! -e $overlay_file) {
+      my $cmd1 = "apptainer overlay create --create-dir $container_results_dir --size $overlay_size $overlay_file 2> psortb.err";
+      if ($verbose) {
+        print "Running: $cmd1\n\n";
+      }
+      system($cmd1);
+      $overlay_created_flag = 1;
+    }
+   
+    # copy input sequence file into results directory
+    my $cmd2 = "apptainer exec -C -B $host_results_rootdir --pwd $container_results_dir --overlay $overlay_file $sif_file bash -c \"cp $host_seqfile $container_results_dir/\" 2>> psortb.err";
+    if ($verbose) {
+      print "Running: $cmd2\n\n";
+    }
+    system($cmd2);
+
+    # run psortb command
+    my $cmd3 = "apptainer exec -C -B $host_results_rootdir --pwd $container_results_dir --env MOUNT=$host_results_dir --overlay $overlay_file $sif_file bash -c \"ln -s /results /tmp/results; /usr/local/psortb/bin/psort $extra_args -i $container_seqfile\" 2>> psortb.err";
+    if ($verbose) {
+      print "Running: $cmd3\n\n";
+    }
+    system($cmd3);
+
+    # copy results from overlay to host file system
+    my $cmd4 = "apptainer exec -C -B $host_results_rootdir --pwd $container_results_dir --overlay $overlay_file $sif_file bash -c \"cp -rp $container_results_dir/* $host_results_dir/\" 2>> psortb.err";
+    if ($verbose) {
+      print "\nRunning: $cmd4\n\n";
+    }
+    system($cmd4);
+
+    # remove copied files (if they were created for the purposes of this workflow)
+    delete_file($host_seqfile, $seqfile_copied);
+    delete_file($overlay_file, $overlay_created_flag);
+}
+
+sub make_file_copy {
+    my ($orig_file, $new_file) = @_;
+
+    my $cmd = "cp $orig_file $new_file";
+    system($cmd);
+    if ($@) {
+      die "Could not copy file: $cmd: $@\n";
+    }
+    return(1);
+}
+
+sub delete_file {
+    my ($file, $delete_flag) = @_;
+
+    if ($delete_flag) {
+        my $cmd = "rm $file";
+        system($cmd);
+        die "Could not delete file: $cmd: $@\n" if $@;
+    }
+}
+
+sub remove_unneeded_args {
+    my $args = shift;
+
+    # remove -r (host results dir) because inside container - the 
+    # "Saving results to <-r option value>" is provided by an environment
+    # variable.
+    # Remove -i <local file> (because we need to use -i <container file>)
+    # Also remove container options
+    my @modified_arg_list;
+
+    for (my $i=0; $i<scalar(@$args); $i++) {
+
+        if (($$args[$i] eq '-r') ||
+            ($$args[$i] eq '--outdir') ||
+            ($$args[$i] eq '-i') || 
+            ($$args[$i] eq '--seq') ||
+            ($$args[$i] eq '-s') ||
+            ($$args[$i] eq '--sif-file') ||
+            ($$args[$i] eq '--overlay-file') ||
+            ($$args[$i] eq '--overlay-size-mb')) 
+        {
+            $i++;
+        }
+        else {
+            push(@modified_arg_list, $$args[$i]);
+        }
+    }
+    return( join(" ", @modified_arg_list) );
+}
+
+sub usage {
+    $0 =~ /^.*\/(.+)/;
+    print("\nUsage: $1 -i <sequence file> -r <local results directory> [-n|-p|-a] [OPTIONS]\n");
+    print("Example command: psortb -n -i myseqs.fasta -r /tmp/psortb_results\n\n");
+    print("Required options:\n");
+    print("  --seq, -i         Input sequence file path (required)\n");
+    print("  --positive, -p    Gram positive bacteria\n");
+    print("  --negative, -n    Gram negative bacteria\n");
+    print("  --archaea, -a     Archaea\n");
+    print("  --outdir, -r      Path of where to save results files\n\n");
+    print("Extra PSORTb options:\n");
+    print("  --cutoff, -c      Sets a cutoff value for reported results\n");
+    print("  --divergent, -d   Sets a cutoff value for the multiple\n");
+    print("                    localization flag\n");
+    print("  --format, -f      Specifies sequence format (default is FASTA)\n");
+    print("  --exact, -e       Skip SCLBLASTe (useful for batch runs of data\n");
+    print("                    against itself in SCLBLAST)\n");
+    print("  --output, -o      Specifies the format for the output (default is\n");
+    print("                    'normal'). Value can be one of: normal, terse or long\n");
+    print("  --x-skip-localization  Comma-separated list of localizations to skip\n\n");
+    print("Container options:\n");
+    print("  --sif_file        Apptainer image file (sif file) location (default: ./psortb.sif)\n");
+    print("  --overlay-file    Specify an overlay image file you want to use.\n");
+    print("                    (Default: results.img created and destroyed after\n"); 
+    print("                    PSORTb analysis ends)\n");
+    print("  --overlay-size-mb Maximum size of results folder (if it doesn't \n");
+    print("                    already exist) in megabytes (default: 300)\n\n");
+    print("Other options:\n");
+    print("  --verbose, -v     Be verbose while running\n");
+    print "  --version         Print the version of PSORTb\n";    
+    print("  --help, -h        Displays usage information\n\n");
+
+    exit(0);
+}
+
+main();
