@@ -34,6 +34,8 @@ found at https://hub.docker.com/r/brinkmanlab/psortb_commandline/
 
 
 ### Building this app
+
+#### WARNING: The 'pftools' library that is installed using the instructions found below is no longer available. We apologize for the inconvienience. We recommend using the pre-built Docker image described above instead of trying to install the psortb commandline tool manually.
 You can build the Docker image yourself using the following instructions. 
 This build requires a unix-type system and 3.9GB space. 
 ```
